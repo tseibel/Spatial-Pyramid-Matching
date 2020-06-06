@@ -52,11 +52,15 @@ def pyr_match(image_1, image_2, degree):
         OG_image_2_array = OG_image_2_array[:,:,0]
     #applies SPM using modified pooling layer
     pym_vals = []
-    while degree >= 1: 
-        image_1_array = pool2d(OG_image_1_array, degree, degree, 0)
-        image_2_array = pool2d(OG_image_2_array, degree, degree, 0)
-        degree = degree//2
-
+    total = 1
+    count = 1
+    the_max = []
+    while count <= degree: 
+        image_1_array = pool2d(OG_image_1_array, total, total, 0)
+        image_2_array = pool2d(OG_image_2_array, total, total, 0)
+        the_max.append(total ** 2)
+        total = 2 ** count
+        count += 1
         #Where More than Half the Squares are 0
         condition_1_1 = (image_1_array < 127)
         condition_1_2 = (image_2_array < 127)
@@ -66,13 +70,14 @@ def pyr_match(image_1, image_2, degree):
         part1 = np.where(condition_1_1 & condition_1_2)
         part2 = np.where(condition_2_1 & condition_2_2)
         pym_vals.append(len(part1[0]) + len(part2[0]))
-    return pym_vals
+    return pym_vals, the_max
 
 def pyr_all(folders1, folders2, mypath):
     for folder1 in folders2:
         if folder1 in folders2:
             folders2.remove(folder1)
         for folder2 in folders2:
+            print ''            
             print folder1, folder2
             pics1 = [f for f in listdir(mypath + folder1 + '/')]
             pics2 = [f for f in listdir(mypath + folder2 + '/')]
@@ -80,10 +85,33 @@ def pyr_all(folders1, folders2, mypath):
                 if pic in pics2:
                     pic1 = Image.open('/home/tseibel/Desktop/SPM/labels/' + folder1 + '/' + pic)
                     pic2 = Image.open('/home/tseibel/Desktop/SPM/labels/' + folder2 + '/' + pic)
-                    output = pyr_match(pic1, pic2, 4)
-                    print folder1, folder2, pic
-                    print output
+                    output = pyr_match(pic1, pic2, 10)
+                    print pic
+                    the_alg(output)
 
+
+def the_alg(output):
+    output[1].reverse()
+    answer = []
+    for each_list in output:
+        L = len(output[0]) - 1
+        index = 0
+        out = 0
+        for x in each_list:
+            #print 'L: ', L
+            #print 'x: ', x
+            #print 'index: ', index
+            value =  ((1 / 2) ** ( index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+            #value =  ((1 / 2) ** ( L - index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+            #value = ( 1 / ( 2 ** ( L - index ) ) ) * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+            #print 'value :', value
+            out += value
+            index +=1
+        answer.append(out)
+    print answer[0]
+    #print answer[1]
+    #print answer[0]/answer[1]
+    
 
 mypath = '/home/tseibel/Desktop/SPM/labels/'
 folders = [f for f in listdir(mypath)]
