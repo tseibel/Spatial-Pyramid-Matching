@@ -1,5 +1,7 @@
 from __future__ import division
 
+import itertools
+import csv
 from PIL import Image
 import numpy as np
 from os import listdir
@@ -73,51 +75,82 @@ def pyr_match(image_1, image_2, degree):
     return pym_vals, the_max
 
 def pyr_all(folders1, folders2, mypath):
+    all_dict = {}
+    diff_all_dict = {}
     for folder1 in folders2:
         if folder1 in folders2:
             folders2.remove(folder1)
         for folder2 in folders2:
-            print ''            
-            print folder1, folder2
+            new_dict = {}
+            diff_new_dict = {}
+            #print ''            
+            #print folder1, folder2
+            #names.append([folder1,folder2])
             pics1 = [f for f in listdir(mypath + folder1 + '/')]
             pics2 = [f for f in listdir(mypath + folder2 + '/')]
             for pic in pics1:
                 if pic in pics2:
                     pic1 = Image.open('/home/tseibel/Desktop/SPM/labels/' + folder1 + '/' + pic)
                     pic2 = Image.open('/home/tseibel/Desktop/SPM/labels/' + folder2 + '/' + pic)
-                    output = pyr_match(pic1, pic2, 10)
-                    print pic
-                    the_alg(output)
+                    answer = pyr_match(pic1, pic2, 10)
+                    #print pic
+                    new_dict[pic], diff_new_dict[pic] = the_alg(answer[0])
+            all_dict[folder1+folder2] = new_dict
+            diff_all_dict[folder1+folder2] = diff_new_dict
+
+    return all_dict, diff_all_dict
+                    
 
 
 def the_alg(output):
-    output[1].reverse()
     answer = []
-    for each_list in output:
-        L = len(output[0]) - 1
-        index = 0
-        out = 0
-        for x in each_list:
-            #print 'L: ', L
-            #print 'x: ', x
-            #print 'index: ', index
-            value =  ((1 / 2) ** ( index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
-            #value =  ((1 / 2) ** ( L - index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
-            #value = ( 1 / ( 2 ** ( L - index ) ) ) * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
-            #print 'value :', value
-            out += value
-            index +=1
-        answer.append(out)
-    print answer[0]
-    #print answer[1]
+    diff_answer =[]
+    L = len(output) - 1
+    index = 0
+    out = 0
+    diff_out = 0
+    for x in output:
+        diff_value = ((1 / 2) ** ( index ) )  * (1 - ( x / ( 2 ** ( 2 * ( L - index ) ) ) ) )
+        value =  ((1 / 2) ** ( index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+        #value =  ((1 / 2) ** ( L - index ) )  * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+        #value = ( 1 / ( 2 ** ( L - index ) ) ) * ( x / ( 2 ** ( 2 * ( L - index ) ) ) )
+        out += value
+        diff_out += diff_value
+        index +=1
+    answer.append(out)
+    diff_answer.append(diff_out)
+    #print answer[0]
+    return answer, diff_answer
     #print answer[0]/answer[1]
     
+def dict_To_CSV(file_name, answers, diffs):
+    images = []
+    image_dict = {}
+    diff_image_dict = {}
+    for the_dict in answers.values():
+        for image in the_dict.keys():
+            if image not in images:
+                image_dict[image] = []
+                diff_image_dict[image] = []
+                images.append(image)
+    for session in answers:
+        for image in images:
+            if image in answers[session]:
+                diff_image_dict[image].append(diffs[session][image])
+                image_dict[image].append(answers[session][image])
+            else:
+                image_dict[image].append('NaN')
+                diff_image_dict[image].append('NaN')
+    with open(file_name, 'w') as csv_file:
+        csvwriter = csv.writer(csv_file, delimiter='\t')
+        csvwriter.writerow(['image name','ws/unet','train/unet','train/ws','ws/unet','train/unet','train/ws'])
+        for image in image_dict:
+            csvwriter.writerow([image, image_dict[image], diff_image_dict[image]])
+
 
 mypath = '/home/tseibel/Desktop/SPM/labels/'
 folders = [f for f in listdir(mypath)]
 
-#test images
-im = Image.open('/home/tseibel/Desktop/SPM/labels/train-labels/13.tif')
-im2 = Image.open('/home/tseibel/Desktop/SPM/labels/unet-labels/13.tif')
-
-pyr_all(folders, folders, mypath)
+answers_dict, diff_dict = pyr_all(folders, folders, mypath)
+ 
+dict_To_CSV('test.csv', answers_dict, diff_dict)
